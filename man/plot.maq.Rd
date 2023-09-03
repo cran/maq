@@ -2,7 +2,7 @@
 % Please edit documentation in R/maq.R
 \name{plot.maq}
 \alias{plot.maq}
-\title{Plot the gain/spend curve.}
+\title{Plot the estimated Qini curve.}
 \usage{
 \method{plot}{maq}(
   x,
@@ -20,46 +20,19 @@
 
 \item{add}{Whether to add to an already existing plot. Default is FALSE.}
 
-\item{horizontal.line}{Whether to draw a horizontal line where the cost curve plateaus.
-Only applies if add = TRUE and the maq object is fit with a maximum \code{spend} that is sufficient
+\item{horizontal.line}{Whether to draw a horizontal line where the Qini curve plateaus.
+Only applies if add = TRUE and the maq object is fit with a maximum \code{budget} that is sufficient
 to treat all units that are expected to benefit.
 Default is TRUE.}
 
-\item{ci.args}{A list of optional arguments to lines() for drawing 95 \% confidence bars.
+\item{ci.args}{A list of optional arguments to \code{lines()} for drawing 95 \% confidence bars.
 Set to NULL to ignore CIs.}
 
-\item{grid.step}{The grid increment size to plot the curve on. Default is
-max(floor(length(path.length) / 1000), 1).}
-}
-\value{
-No return value, called for side effects.
+\item{grid.step}{The spend grid increment size to plot the curve on. Default is
+\code{max(floor(length(path.length) / 1000), 1)} where path.length is the size of the
+grid underlying the estimated Qini curve.}
 }
 \description{
-Plot the gain/spend curve.
-}
-\examples{
-# Fit a MAQ on toy data.
-n <- 1000
-K <- 5
-tau.hat <- matrix(1 + rnorm(n * K), n, K)
-cost <- 0.05 + matrix(runif(n * K), n, K)
-reward.eval <-  matrix(1 + rnorm(n * K), n, K)
-
-max.budget <- sum(cost)
-mq <- maq(tau.hat, cost, max.budget, reward.eval, R = 200)
-print(mq)
-
-# Plot the Qini curve.
-plot(mq)
-
-# Get an estimate of gain.
-average_gain(mq, spend = 0.2)
-
-# Get the underlying treatment allocation.
-pi.mat <- predict(mq, spend = 0.2)
-
-# Compare with another curve
-qini1 <- maq(tau.hat[, 1], cost[, 1], max.budget, reward.eval[, 1], R = 200)
-difference_gain(mq, qini1, spend = 0.2)
-
+Plot the estimated curve \eqn{Q(B), B \in (0, B_{max}]}. If the underlying estimated policy
+\eqn{\pi_B} entails treating zero units, then this function returns an empty value.
 }

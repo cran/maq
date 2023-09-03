@@ -2,46 +2,70 @@
 % Please edit documentation in R/maq.R
 \name{predict.maq}
 \alias{predict.maq}
-\title{Predict optimal treatment allocation.}
+\title{Predict treatment allocation.}
 \usage{
-\method{predict}{maq}(object, spend, ...)
+\method{predict}{maq}(object, spend, type = c("matrix", "vector"), ...)
 }
 \arguments{
 \item{object}{A maq object.}
 
-\item{spend}{The spend level.}
+\item{spend}{The spend level B.}
+
+\item{type}{If "matrix" (Default), then return a matrix where the i-th entry equals
+\eqn{\pi_B(X_i)} as described above.
+If "vector", then \eqn{\pi_B(X_i)} is instead encoded taking values in the set \{0, 1, ..., K\}.
+If the allocation is fractional at the given B, this option returns the policy corresponding
+to the previous/lower value of the spend path, at which point the policy is integer-valued, but
+incurs a cost less than B in expectation.}
 
 \item{...}{Additional arguments (currently ignored).}
 }
 \value{
-A sparse matrix.
+A matrix with row i equal to \eqn{\pi_B(X_i)}. If \code{type = "vector"} then an
+n-length vector with elements equal to the arm (0 to K) that is assigned at the given spend B.
 }
 \description{
-Predict optimal treatment allocation.
+Get an estimate of the policy \eqn{\pi_B(X_i)} at a spend level B.
+\eqn{\pi_B(X_i)} is a K-dimensional vector where the k-th element is 1 if assigning the k-th
+arm to unit i is optimal at a given spend B, and 0 otherwise (with all entries 0 if the
+control arm is assigned).
+Depending on the value of B, \eqn{\pi_B(X_j)} might not be integer valued for some final unit j.
+There are two such cases - the first one is when there is not sufficient budget left to assign j an
+initial arm. The second is if there is not sufficient budget to upgrade unit j from arm k to k'.
+In these cases \eqn{\pi_B(X_j)} takes on one, or two fractional values, respectively,
+representing an assignment probability of a given arm.
 }
 \examples{
-# Fit a MAQ on toy data.
-n <- 1000
-K <- 5
-tau.hat <- matrix(1 + rnorm(n * K), n, K)
-cost <- 0.05 + matrix(runif(n * K), n, K)
-reward.eval <-  matrix(1 + rnorm(n * K), n, K)
+\donttest{
+# Generate some toy data and fit a solution path.
+n <- 10
+K <- 4
+reward <- matrix(rnorm(n * K), n, K)
+cost <- matrix(runif(n * K), n, K)
+DR.scores <- reward + rnorm(n)
+path <- maq(reward, cost, 1, DR.scores)
 
-max.budget <- sum(cost)
-mq <- maq(tau.hat, cost, max.budget, reward.eval, R = 200)
-print(mq)
+# Get the treatment allocation matrix
+pi.mat <- predict(path, 0.1)
+pi.mat
+# pi.mat might have fractional entries for a single unit but satisfies
+# the budget in expectation exactly.
+sum(cost * pi.mat) / n
 
-# Plot the Qini curve.
-plot(mq)
+# Get the treatment allocation instead encoded in the set \{0, 1, ..., K\}.
+pi.vec <- predict(path, 0.1, type = "vector")
+pi.vec
+# If a unit has a fractional entry, then pi.vec will incur a cost slightly
+# lower than 0.1.
+sum(cost[cbind(1:n, pi.vec)]) / n
 
-# Get an estimate of gain.
-average_gain(mq, spend = 0.2)
-
-# Get the underlying treatment allocation.
-pi.mat <- predict(mq, spend = 0.2)
-
-# Compare with another curve
-qini1 <- maq(tau.hat[, 1], cost[, 1], max.budget, reward.eval[, 1], R = 200)
-difference_gain(mq, qini1, spend = 0.2)
+# Retrieve the underlying solution path.
+data.path <- summary(path)
+# If we predict at a spend level on this grid, say entry 5,
+# then the policy is integer-valued:
+spend <- data.path$spend[5]
+predict(path, spend)
+predict(path, spend, type = "vector")
+}
 
 }

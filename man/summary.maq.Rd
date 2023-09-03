@@ -2,7 +2,7 @@
 % Please edit documentation in R/maq.R
 \name{summary.maq}
 \alias{summary.maq}
-\title{MAQ Summary.}
+\title{Qini curve summary.}
 \usage{
 \method{summary}{maq}(object, ...)
 }
@@ -12,33 +12,9 @@
 \item{...}{Additional arguments (currently ignored).}
 }
 \value{
-A data.frame with the computed path.
+A data.frame making up the elements of the estimated Qini curve.
 }
 \description{
-MAQ Summary.
-}
-\examples{
-# Fit a MAQ on toy data.
-n <- 1000
-K <- 5
-tau.hat <- matrix(1 + rnorm(n * K), n, K)
-cost <- 0.05 + matrix(runif(n * K), n, K)
-reward.eval <-  matrix(1 + rnorm(n * K), n, K)
-
-max.budget <- sum(cost)
-mq <- maq(tau.hat, cost, max.budget, reward.eval, R = 200)
-print(mq)
-
-# Plot the Qini curve.
-plot(mq)
-
-# Get an estimate of gain.
-average_gain(mq, spend = 0.2)
-
-# Get the underlying treatment allocation.
-pi.mat <- predict(mq, spend = 0.2)
-
-# Compare with another curve
-qini1 <- maq(tau.hat[, 1], cost[, 1], max.budget, reward.eval[, 1], R = 200)
-difference_gain(mq, qini1, spend = 0.2)
+Get a data.frame with columns equal to [B, Q(B), std.err(Q(B)), i, k], where
+i is the unit and k the treatment arm that is optimal to assign at a spend level B.
 }
