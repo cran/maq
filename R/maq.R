@@ -31,16 +31,16 @@
 #'  measures the cost of assigning the i-th unit the k-th treatment arm.
 #'  If the costs does not vary by unit, only by arm, this can also be a K-length vector.
 #'  (Note: these costs need not be denominated on the same scale as the treatment effect estimates).
-#' @param budget The maximum spend per unit, \eqn{B_{max}}, to fit the Qini curve on.
-#'  Setting this to some large number, such as `sum(cost)`, will fit the path up to a maximum spend per unit
-#'  where each unit that is expected to benefit (that is, \eqn{\hat \tau(X_i)>0}) is treated.
 #' @param DR.scores An \eqn{n \cdot K} matrix of test set evaluation scores used to form an estimate of
 #'  Q(B). With known treatment propensities \eqn{P[W_i|X_i]},
-#'  these can be constructed via inverse-propensity weighting, i.e, with entry (i, k) equal to
+#'  these scores can be constructed via inverse-propensity weighting, i.e, with entry (i, k) equal to
 #'  \eqn{\frac{\mathbf{1}(W_i=k)Y_i}{P[W_i=k | X_i]} - \frac{\mathbf{1}(W_i=0)Y_i}{P[W_i=0 | X_i]}}.
-#'  In observational settings where \eqn{P[W_i|X_i]} has to be estimated,
-#'  then an alternative is to construct these scores via
-#'  augmented inverse-propensity weighting (AIPW) - for details we refer to the paper.
+#'  In observational settings where \eqn{P[W_i|X_i]} has to be estimated, then an alternative is to
+#'  construct these scores via augmented inverse-propensity weighting (AIPW) - yielding a doubly
+#'  robust estimate of the Qini curve (for details, see the paper).
+#' @param budget The maximum spend per unit, \eqn{B_{max}}, to fit the Qini curve on.
+#'  Setting this to NULL (Default), will fit the path up to a maximum spend per unit
+#'  where each unit that is expected to benefit (that is, \eqn{\hat \tau_k(X_i)>0}) is treated.
 #' @param target.with.covariates If TRUE (Default), then the policy \eqn{\pi_B} takes covariates
 #'  \eqn{X_i} into account. If FALSE, then the policy only takes the average reward
 #'  \eqn{\bar \tau = E[\hat \tau(X_i)]} and average costs \eqn{\bar C = E[C(X_i)]} into account when
@@ -58,9 +58,12 @@
 #' @param clusters Vector of integers or factors specifying which cluster each observation corresponds to,
 #'  which are used to construct clustered standard errors.
 #'  Default is NULL (ignored).
-#' @param tie.breaker An optional permutation of the the integers 1 to nrow(rewards) used to
-#'  break potential ties in the optimal treatment allocation. If NULL, the ties are broken by
-#'  the lowest sample id (i.e. the sample appearing first in the data). Default is NULL.
+#' @param tie.breaker An optional permutation of the integers 1 to n used to
+#'  break potential ties in the optimal treatment allocation
+#'  (only relevant if \eqn{\hat \tau(X)} takes on the same values for different samples
+#'  \eqn{X_i} and \eqn{X_j}).
+#'  If NULL, the ties are broken by the lowest sample id (i.e. the sample appearing first in the data).
+#'  Default is NULL.
 #' @param num.threads Number of threads used in bootstrap replicates. By default, the number of threads
 #'  is set to the maximum hardware concurrency.
 #' @param seed The seed of the C++ random number generator. Default is 42.
@@ -74,7 +77,6 @@
 #' @examples
 #' \donttest{
 #' if (require("grf", quietly = TRUE)) {
-#'
 #' # Fit a CATE estimator on a training sample.
 #' n <- 3000
 #' p <- 5
@@ -97,8 +99,7 @@
 #' DR.scores <- grf::get_scores(eval.forest, drop = TRUE)
 #'
 #' # Fit a Qini curve on evaluation data, using 200 bootstrap replicates for confidence intervals.
-#' max.budget <- 1
-#' ma.qini <- maq(tau.hat, cost, max.budget, DR.scores, R = 200)
+#' ma.qini <- maq(tau.hat, cost, DR.scores, R = 200)
 #'
 #' # Plot the Qini curve.
 #' plot(ma.qini)
@@ -114,20 +115,20 @@
 #' # evaluation via AIPW scores is to use inverse-propensity weighting (IPW).
 #' W.hat <- rep(1/3, 3)
 #' IPW.scores <- get_ipw_scores(Y[test], W[test], W.hat)
-#' mq.ipw <- maq(tau.hat, cost, max.budget, IPW.scores)
+#' mq.ipw <- maq(tau.hat, cost, IPW.scores)
 #'
 #' plot(mq.ipw, add = TRUE, col = 2)
 #' legend("topleft", c("All arms", "95% CI", "All arms (IPW)"), col = c(1, 1, 2), lty = c(1, 3, 1))
 #'
 #' # Estimate some baseline policies.
 #' # a) A policy that ignores covariates and only takes the average reward/cost into account.
-#' qini.avg <- maq(tau.hat, cost, max.budget, DR.scores, target.with.covariates = FALSE, R = 200)
+#' qini.avg <- maq(tau.hat, cost, DR.scores, target.with.covariates = FALSE, R = 200)
 #'
 #' # b) A policy that only use arm 1.
-#' qini.arm1 <- maq(tau.hat[, 1], cost[, 1], max.budget, DR.scores[, 1], R = 200)
+#' qini.arm1 <- maq(tau.hat[, 1], cost[, 1], DR.scores[, 1], R = 200)
 #'
 #' # c) A policy that only use arm 2.
-#' qini.arm2 <- maq(tau.hat[, 2], cost[, 2], max.budget, DR.scores[, 2], R = 200)
+#' qini.arm2 <- maq(tau.hat[, 2], cost[, 2], DR.scores[, 2], R = 200)
 #'
 #' plot(ma.qini, ci.args = NULL)
 #' plot(qini.avg, col = 2, add = TRUE, ci.args = NULL)
@@ -145,14 +146,17 @@
 #' # Estimate the value of targeting with both arms as opposed to targeting with only arm 2.
 #' difference_gain(ma.qini, qini.arm2, spend = 0.2)
 #'
+#' # Compare targeting strategies over a range of budget values by estimating an area between
+#' # two curves up to a given spend point.
+#' integrated_difference(ma.qini, qini.arm1, spend = 0.3)
 #' }
 #' }
 #'
 #' @export
 maq <- function(reward,
                 cost,
-                budget,
                 DR.scores,
+                budget = NULL,
                 target.with.covariates = TRUE,
                 R = 0,
                 paired.inference = TRUE,
@@ -175,6 +179,12 @@ maq <- function(reward,
 
   if (any(cost <= 0)) {
     stop("Costs should be > 0.")
+  }
+
+  if (is.null(budget)) {
+    max.budget <- .Machine$double.xmax
+  } else {
+    max.budget <- budget
   }
 
   if (R < 0) {
@@ -229,7 +239,7 @@ maq <- function(reward,
 
   ret <- solver_rcpp(as.matrix(reward), as.matrix(DR.scores), as.matrix(cost),
                      sample.weights, tie.breaker, clusters,
-                     budget, target.with.covariates, paired.inference, R, num.threads, seed)
+                     max.budget, target.with.covariates, paired.inference, R, num.threads, seed)
 
   output <- list()
   class(output) <- "maq"
@@ -239,7 +249,11 @@ maq <- function(reward,
   output[["paired.inference"]] <- paired.inference
   output[["R"]] <- R
   output[["dim"]] <- c(NROW(reward), NCOL(reward))
-  output[["budget"]] <- budget
+  output[["budget"]] <- if (is.null(budget)) {
+    max(ret$spend[length(ret$spend)], 0)
+  } else {
+    budget
+  }
 
   output
 }
@@ -250,7 +264,7 @@ maq <- function(reward,
 #'  \eqn{\pi_B(X_i)} is a K-dimensional vector where the k-th element is 1 if assigning the k-th
 #'  arm to unit i is optimal at a given spend B, and 0 otherwise (with all entries 0 if the
 #'  control arm is assigned).
-#'  Depending on the value of B, \eqn{\pi_B(X_j)} might not be integer valued for some final unit j.
+#'  Depending on the value of B, \eqn{\pi_B(X_j)} might be fractional for at most one unit j.
 #'  There are two such cases - the first one is when there is not sufficient budget left to assign j an
 #'  initial arm. The second is if there is not sufficient budget to upgrade unit j from arm k to k'.
 #'  In these cases \eqn{\pi_B(X_j)} takes on one, or two fractional values, respectively,
@@ -269,7 +283,10 @@ maq <- function(reward,
 #' @param ... Additional arguments (currently ignored).
 #'
 #' @return A matrix with row i equal to \eqn{\pi_B(X_i)}. If `type = "vector"` then an
-#' n-length vector with elements equal to the arm (0 to K) that is assigned at the given spend B.
+#'  n-length vector with elements equal to the arm (from 0 to K) that is assigned at the given spend B
+#'  (note: if the treatment allocation contains a fractional entry at the given B, then the returned
+#'  vector is the policy at the nearest spend B' in the solution path where the allocation is
+#'  integer-valued but incurs a cost B' < B).
 #'
 #' @examples
 #' \donttest{
@@ -279,7 +296,7 @@ maq <- function(reward,
 #' reward <- matrix(rnorm(n * K), n, K)
 #' cost <- matrix(runif(n * K), n, K)
 #' DR.scores <- reward + rnorm(n)
-#' path <- maq(reward, cost, 1, DR.scores)
+#' path <- maq(reward, cost, DR.scores)
 #'
 #' # Get the treatment allocation matrix
 #' pi.mat <- predict(path, 0.1)
@@ -421,7 +438,7 @@ difference_gain <- function(object.lhs,
                "as well as with the same random seed, bootstrap replicates, and data"))
   }
 
-  estimate <- average_gain(object.lhs, spend)[[1]] - average_gain(object.rhs, spend)[[1]]
+  point.estimate <- average_gain(object.lhs, spend)[[1]] - average_gain(object.rhs, spend)[[1]]
   # Compute paired std.errors
   .get_estimates <- function(object) {
     gain.bs <- object[["_path"]]$gain.bs
@@ -447,115 +464,83 @@ difference_gain <- function(object.lhs,
     std.err <- 0
   }
 
-  c(estimate = estimate, std.err = std.err)
+  c(estimate = point.estimate, std.err = std.err)
 }
 
-#' Qini curve summary.
+#' Get estimate of the area between two Qini curves with paired standard errors.
 #'
-#' Get a data.frame with columns equal to \[B, Q(B), std.err(Q(B)), i, k\], where
-#' i is the unit and k the treatment arm that is optimal to assign at a spend level B.
+#' Given two Qini curves, \eqn{Q_a} and \eqn{Q_b}, and a maximum spend \eqn{\bar B},
+#'  get an estimate of the integrated difference
+#'  \eqn{\int_{0}^{\bar B} (Q_a(B) - Q_b(B))dB}.
 #'
-#' @param object A maq object.
-#' @param ... Additional arguments (currently ignored).
+#' @param object.lhs A maq object \eqn{Q_a} to subtract from.
+#' @param object.rhs A maq object \eqn{Q_b} to subtract with.
+#' @param spend The spend level \eqn{\bar B}.
 #'
-#' @return A data.frame making up the elements of the estimated Qini curve.
-#' @method summary maq
+#' @return An estimate of the area between the two curves along with standard errors.
 #' @export
-summary.maq <- function(object,
-                        ...) {
-
-  data.frame(
-    spend = object[["_path"]]$spend,
-    gain = object[["_path"]]$gain,
-    std.err = object[["_path"]]$std.err,
-    unit.allocation = object[["_path"]]$ipath + 1, # +1: C++ index.
-    arm.allocation = object[["_path"]]$kpath + 1
-  )
-}
-
-#' Print a maq object.
-#' @param x A maq object.
-#' @param ... Additional arguments (currently ignored).
-#'
-#' @method print maq
-#' @export
-print.maq <- function(x,
-                      ...) {
-
-  cat("MAQ object fit on", x$dim[1], "units and", x$dim[2], "arms with max budget", x$budget)
-}
-
-#' Plot the estimated Qini curve.
-#'
-#' Plot the estimated curve \eqn{Q(B), B \in (0, B_{max}]}. If the underlying estimated policy
-#' \eqn{\pi_B} entails treating zero units, then this function returns an empty value.
-#'
-#' @param x A maq object.
-#' @param ... Additional arguments passed to plot.
-#' @param add Whether to add to an already existing plot. Default is FALSE.
-#' @param horizontal.line Whether to draw a horizontal line where the Qini curve plateaus.
-#'  Only applies if add = TRUE and the maq object is fit with a maximum `budget` that is sufficient
-#'  to treat all units that are expected to benefit.
-#'  Default is TRUE.
-#' @param ci.args A list of optional arguments to `lines()` for drawing 95 % confidence bars.
-#'  Set to NULL to ignore CIs.
-#' @param grid.step The spend grid increment size to plot the curve on. Default is
-#'  `max(floor(length(path.length) / 1000), 1)` where path.length is the size of the
-#'  grid underlying the estimated Qini curve.
-#'
-#' @method plot maq
-#' @export
-plot.maq <- function(x,
-                     ...,
-                     add = FALSE,
-                     horizontal.line = TRUE,
-                     ci.args = list(),
-                     grid.step = NULL
-                     ) {
-  spend.grid <- x[["_path"]]$spend
-  gain.grid <- x[["_path"]]$gain
-  std.err.grid <- x[["_path"]]$std.err
-  if (length(spend.grid) < 1) {
-    return(invisible(x))
+integrated_difference <- function(object.lhs,
+                                  object.rhs,
+                                  spend) {
+  if (!object.lhs[["_path"]]$complete.path && spend > object.lhs$budget) {
+    stop("lhs maq path is not fit beyond given spend level.")
   }
-
-  if (is.null(grid.step)) {
-    grid.step <- max(floor(length(spend.grid) / 1000), 1)
+  if (!object.rhs[["_path"]]$complete.path && spend > object.rhs$budget) {
+    stop("rhs maq path is not fit beyond given spend level.")
   }
-  plot.grid <- seq(1, length(spend.grid), by = grid.step)
-  spend <- spend.grid[plot.grid]
-  gain <- gain.grid[plot.grid]
-  std.err <- std.err.grid[plot.grid]
-  if (add && horizontal.line) {
-    if (x[["_path"]]$complete.path) {
-      len <- length(spend)
-      # Retrieve the main plot's end point (R by default extends the xrange by 4 percent)
-      xmax <- graphics::par("usr")[2] / 1.04
-      if (xmax > spend[len]) {
-        spend <- c(spend, seq(spend[len], xmax, length.out = 100))
-        gain <- c(gain, rep(gain[len], 100))
-        std.err <- c(std.err, rep(std.err[len], 100))
+  if (object.lhs[["seed"]] != object.rhs[["seed"]] ||
+      object.lhs[["R"]] != object.rhs[["R"]] ||
+      object.lhs[["dim"]][[1]] != object.rhs[["dim"]][[1]] ||
+      !object.lhs[["paired.inference"]] ||
+      !object.rhs[["paired.inference"]]) {
+    stop(paste("Paired comparisons require maq objects to be fit with paired.inference=TRUE",
+               "as well as with the same random seed, bootstrap replicates, and data"))
+  }
+  R <- object.lhs[["R"]]
+
+  # Estimate an AUC via estimating the difference \int_{0}^{\bar B} Q_a(B)dB - \int_{0}^{\bar B} Q_b(B)dB.
+  .get_estimate <- function(gain.path, spend.grid, path.idx) {
+    if (path.idx == 0) {
+      estimate <- 0
+    } else if (abs(spend.grid[length(spend.grid)] - spend) < 1e-10 || path.idx == length(spend.grid)) {
+      area.offset <- 0
+      # Are we summing beyond the point at which the curve plateaus?
+      if (spend > spend.grid[path.idx]) {
+        spend.delta <- spend - spend.grid[path.idx]
+        area.offset <- spend.grid[path.idx] * spend.delta
       }
+      estimate <- mean(gain.path, na.rm = TRUE) + area.offset
+    } else {
+      interp.ratio <- (spend - spend.grid[path.idx]) / (spend.grid[path.idx + 1] - spend.grid[path.idx])
+      estimate <- mean(gain.path[1:path.idx], na.rm = TRUE) +
+       (gain.path[path.idx + 1] - gain.path[path.idx]) * interp.ratio
     }
-  }
-  lb <- gain - 1.96 * std.err
-  ub <- gain + 1.96 * std.err
 
-  plot.args <- list(type = "l", ylim = c(min(lb), max(ub)), xlab = "spend", ylab = "gain", col = 1)
-  new.args <- list(...)
-  plot.args[names(new.args)] <- new.args
-
-  lines.args <- list(lty = 3, col = plot.args$col)
-  lines.args[names(ci.args)] <- ci.args
-
-  if (!add || grDevices::dev.cur() == 1L) {
-    do.call(plot, c(list(x = spend, y = gain), plot.args))
-  } else {
-    do.call(graphics::lines, c(list(x = spend, y = gain), plot.args))
+    estimate
   }
 
-  if (!is.null(ci.args)) {
-    do.call(graphics::lines, c(list(x = spend, y = lb), lines.args))
-    do.call(graphics::lines, c(list(x = spend, y = ub), lines.args))
+  gain.path.lhs <- object.lhs[["_path"]]$gain
+  spend.grid.lhs <- object.lhs[["_path"]]$spend
+  path.idx.lhs <- findInterval(spend, spend.grid.lhs)
+
+  gain.path.rhs <- object.rhs[["_path"]]$gain
+  spend.grid.rhs <- object.rhs[["_path"]]$spend
+  path.idx.rhs <- findInterval(spend, spend.grid.rhs)
+
+  point.estimate <- .get_estimate(gain.path.lhs, spend.grid.lhs, path.idx.lhs) -
+    .get_estimate(gain.path.rhs, spend.grid.rhs, path.idx.rhs)
+
+  # Compute paired std.errors
+  estimates.lhs <- unlist(lapply(seq_len(R), function(bs) {
+    .get_estimate(object.lhs[["_path"]]$gain.bs[[bs]], spend.grid.lhs, path.idx.lhs)
+  }))
+  estimates.rhs <- unlist(lapply(seq_len(R), function(bs) {
+    .get_estimate(object.rhs[["_path"]]$gain.bs[[bs]], spend.grid.rhs, path.idx.rhs)
+  }))
+  std.err <- stats::sd(estimates.lhs - estimates.rhs, na.rm = TRUE)
+  if (is.na(std.err)) {
+    std.err <- 0
   }
+
+  c(estimate = point.estimate, std.err = std.err)
 }
