@@ -1,10 +1,10 @@
-12acac92162cd1aaf951328690753949 *DESCRIPTION
+85fa3a331b1d66cf85a663ac916faa24 *DESCRIPTION
 e0f9d6e12c0f632417558b60dc1a417a *LICENSE
 443aa5223c8fedd570f42d0c602f74a5 *NAMESPACE
 b9425a7552d8765e279a7c506e26f347 *R/RcppExports.R
 80bfd44f9badfbdf64e06af890fd209f *R/get_ipw_scores.R
 7fec410562610152e21dc9a1a3e49a75 *R/maq-package.R
-b9b714d6d0414912687334967bcff3fe *R/maq.R
+9de9da2f6600d01074eb088f30b307c7 *R/maq.R
 f5486f1b17e4bc96f08fb33ef9e04a73 *R/plot.R
 f3c0b9cab3367efdf1af0e5406c48598 *R/print.R
 815a62d87ad13a5d46776a6fc7918a66 *R/summary.R
@@ -12,7 +12,7 @@ e2be410456146cb8fe0917426d018721 *man/average_gain.Rd
 d94f8f9196c2d64c073f8ec769ff9bdb *man/difference_gain.Rd
 8d8502f5a5269c5c99e24c823129acef *man/get_ipw_scores.Rd
 c26fb3a5fe45658403cc1a8796463f29 *man/integrated_difference.Rd
-0a52d88def4f31338d93e609f43b8287 *man/maq.Rd
+56a971a19d1906563f291c8db325c138 *man/maq.Rd
 f437e37c1ac577190646829f9cdb7297 *man/plot.maq.Rd
 536c103d84e993f54422df01fb735728 *man/predict.maq.Rd
 2589443c86d0a75ff1fb5d8e1963f455 *man/print.maq.Rd
