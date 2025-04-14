@@ -2,7 +2,7 @@
 % Please edit documentation in R/maq.R
 \name{maq}
 \alias{maq}
-\title{Fit a Multi-armed Qini curve.}
+\title{Fit a multi-armed Qini curve.}
 \usage{
 maq(
   reward,
@@ -120,7 +120,7 @@ tau.forest <- grf::multi_arm_causal_forest(X[train, ], Y[train], W[train])
 test <- -train
 tau.hat <- predict(tau.forest, X[test, ], drop = TRUE)$predictions
 
-# Assume costs equal a unit's pre-treatment covariate - the following are a toy example.
+# Assume costs equal a unit's pre-treatment covariate - the following is a toy example.
 cost <- cbind(X[test, 4] / 4, X[test, 5])
 
 # Fit an evaluation forest to compute doubly robust scores on the test set.
@@ -185,5 +185,5 @@ integrated_difference(ma.qini, qini.arm1, spend = 0.3)
 \references{
 Sverdrup, Erik, Han Wu, Susan Athey, and Stefan Wager.
 "Qini Curves for Multi-Armed Treatment Rules".
-arXiv preprint arXiv:2306.11979, 2023.
+Journal of Computational and Graphical Statistics, forthcoming.
 }

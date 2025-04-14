@@ -1,6 +1,6 @@
 Package: maq
 Title: Multi-Armed Qini
-Version: 0.5.0
+Version: 0.6.0
 Authors@R: c(
     person("Erik", "Sverdrup", email = "erik.sverdrup@monash.edu", role = c("aut", "cre")),
     person("Han", "Wu", role = "aut"),
@@ -21,11 +21,11 @@ SystemRequirements: GNU make
 URL: https://github.com/grf-labs/maq
 BugReports: https://github.com/grf-labs/maq/issues
 NeedsCompilation: yes
-Packaged: 2024-11-14 06:01:21 UTC; erikcs
+Packaged: 2025-04-14 11:12:06 UTC; erikcs
 Author: Erik Sverdrup [aut, cre],
   Han Wu [aut],
   Susan Athey [aut],
   Stefan Wager [aut]
 Maintainer: Erik Sverdrup <erik.sverdrup@monash.edu>
 Repository: CRAN
-Date/Publication: 2024-11-14 08:50:13 UTC
+Date/Publication: 2025-04-14 11:40:02 UTC

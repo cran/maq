@@ -1,4 +1,4 @@
-#' Fit a Multi-armed Qini curve.
+#' Fit a multi-armed Qini curve.
 #'
 #' Fit a curve that shows estimates of a policy value \eqn{Q(B)} over increasing decision thresholds
 #' \eqn{B}. These may include constraints on the treatment allocation, such as the fraction treated or
@@ -72,7 +72,7 @@
 #'
 #' @references Sverdrup, Erik, Han Wu, Susan Athey, and Stefan Wager.
 #'  "Qini Curves for Multi-Armed Treatment Rules".
-#'  arXiv preprint arXiv:2306.11979, 2023.
+#'  Journal of Computational and Graphical Statistics, forthcoming.
 #'
 #' @examples
 #' \donttest{
@@ -91,7 +91,7 @@
 #' test <- -train
 #' tau.hat <- predict(tau.forest, X[test, ], drop = TRUE)$predictions
 #'
-#' # Assume costs equal a unit's pre-treatment covariate - the following are a toy example.
+#' # Assume costs equal a unit's pre-treatment covariate - the following is a toy example.
 #' cost <- cbind(X[test, 4] / 4, X[test, 5])
 #'
 #' # Fit an evaluation forest to compute doubly robust scores on the test set.
@@ -547,4 +547,49 @@ integrated_difference <- function(object.lhs,
   }
 
   c(estimate = point.estimate, std.err = std.err)
+}
+
+#' Scale a Qini curve.
+#'
+#' Remaps the policy value and budget to application-specific units.
+#' This convenience function is typically useful for plots.
+#'
+#' @param object A maq object.
+#' @param scale A numeric value to scale by.
+#'
+#' @return A maq object with policy values and budget rescaled by the given factor.
+#'
+#' @examples
+#' \donttest{
+#' # Generate some single-arm toy data.
+#' n <- 1500
+#' K <- 1
+#' reward <- matrix(1 + runif(n * K), n, K)
+#' scores <- reward + 5 * matrix(rnorm(n * K), n, K)
+#' cost <- 1
+#'
+#' # Fit a Qini curve.
+#' qini <- maq(reward, cost, scores, R = 200)
+#'
+#' # Plot the policy values as we vary the fraction treated.
+#' plot(qini, xlab = "Fraction treated")
+#'
+#' # Plot the policy values for a maximum allocation of, for example, 500 units.
+#' plot(scale_maq(qini, 500), xlab = "Units treated")
+#'
+#' # With R 4.1.0 or later, the native pipe can be used to chain scaling and plotting.
+#' # scale_maq(qini, 500) |>
+#' #   plot(xlab = "Units treated")
+#'}
+#' @export
+scale_maq <- function(object,
+                      scale = 1) {
+  object[["_path"]]$spend <- scale * object[["_path"]]$spend
+  object[["_path"]]$gain <- scale * object[["_path"]]$gain
+  object[["_path"]]$std.err <- scale * object[["_path"]]$std.err
+  object[["_path"]]$gain.bs <- lapply(object[["_path"]]$gain.bs,
+                                      function(x) scale * x)
+  object$budget <- object$budget * scale
+
+  object
 }
